@@ -1,31 +1,10 @@
-<?php
+<?hh
 
-namespace Curl;
+namespace HHCurl;
 
 /**
- * An object-oriented wrapper of the PHP cURL extension.
+ * An object-oriented wrapper of the HHVM/Hack cURL extension.
  *
- * This library requires to have the php cURL extensions installed:
- * https://php.net/manual/curl.setup.php
- *
- * Example of making a get request with parameters:
- *
- * ```php
- * $curl = new Curl\Curl();
- * $curl->get('http://www.example.com/search', array(
- *     'q' => 'keyword',
- * ));
- * ```
- *
- * Example post request with post data:
- *
- * ```php
- * $curl = new Curl\Curl();
- * $curl->post('http://www.example.com/login/', array(
- *     'username' => 'myusername',
- *     'password' => 'mypassword',
- * ));
- * ```
  *
  * @see https://php.net/manual/curl.setup.php
  */
@@ -66,11 +45,11 @@ class Curl
     /**
      * @var string The user agent name which is set when making a request
      */
-    const USER_AGENT = 'PHP Curl/1.6 (+https://github.com/php-mod/curl)';
+    const USER_AGENT = 'HHVM/Hack HHCurl (+https://github.com/kubotak-is/hhcurl)';
 
-    private $_cookies = array();
+    private array $_cookies = [];
 
-    private $_headers = array();
+    private array $_headers = [];
 
     /**
      * @var resource Contains the curl resource created by `curl_init()` function
@@ -80,47 +59,47 @@ class Curl
     /**
      * @var booelan Whether an error occured or not
      */
-    public $error = false;
+    public bool $error = false;
 
     /**
      * @var int Contains the error code of the curren request, 0 means no error happend
      */
-    public $error_code = 0;
+    public int $error_code = 0;
 
     /**
      * @var string If the curl request failed, the error message is contained
      */
-    public $error_message = null;
+    public ?string $error_message = null;
 
     /**
      * @var booelan Whether an error occured or not
      */
-    public $curl_error = false;
+    public bool $curl_error = false;
 
     /**
      * @var int Contains the error code of the curren request, 0 means no error happend
      */
-    public $curl_error_code = 0;
+    public int $curl_error_code = 0;
 
     /**
      * @var string If the curl request failed, the error message is contained
      */
-    public $curl_error_message = null;
+    public ?string $curl_error_message = null;
 
     /**
      * @var booelan Whether an error occured or not
      */
-    public $http_error = false;
+    public bool $http_error = false;
 
     /**
      * @var int Contains the error code of the curren request, 0 means no error happend
      */
-    public $http_status_code = 0;
+    public int $http_status_code = 0;
 
     /**
      * @var string If the curl request failed, the error message is contained
      */
-    public $http_error_message = null;
+    public ?string $http_error_message = null;
 
     /**
      * @var string|array TBD (ensure type) Contains the request header informations
@@ -135,7 +114,7 @@ class Curl
     /**
      * @var string Contains the response from the curl request
      */
-    public $response = null;
+    public ?string $response = null;
 
     /**
      * Constructor ensures the available curl extension is loaded.
@@ -171,14 +150,19 @@ class Curl
 
     // protected methods
 
+    protected async function curl_exce(): Awaitable
+    {
+       return await \HH\Asio\curl_exec($this->curl);
+    }
+
     /**
      * Execute the curl request based on the respectiv settings.
      *
      * @return int Returns the error code for the current curl request
      */
-    protected function exec()
+    protected async function exec(): Awaitable
     {
-        $this->response = curl_exec($this->curl);
+        $this->response = await $this->curl_exce();
         $this->curl_error_code = curl_errno($this->curl);
         $this->curl_error_message = curl_error($this->curl);
         $this->curl_error = !($this->curl_error_code === 0);
@@ -243,7 +227,7 @@ class Curl
      */
     public function _exec()
     {
-        return $this->exec();
+        return \HH\Asio\join($this->exec());
     }
 
     // functions
@@ -257,7 +241,7 @@ class Curl
      * @param array  $data Optional arguments who are part of the url
      * @return self
      */
-    public function get($url, $data = array())
+    public async function get(string $url, array $data = []): Awaitable
     {
         if (count($data) > 0) {
             $this->setOpt(CURLOPT_URL, $url.'?'.http_build_query($data));
@@ -265,7 +249,7 @@ class Curl
             $this->setOpt(CURLOPT_URL, $url);
         }
         $this->setOpt(CURLOPT_HTTPGET, true);
-        $this->exec();
+        await $this->exec();
         return $this;
     }
 
@@ -276,11 +260,11 @@ class Curl
      * @param array  $data Post data to pass to the url
      * @return self
      */
-    public function post($url, $data = array())
+    public async function post(string $url, array $data = []): Awaitable
     {
         $this->setOpt(CURLOPT_URL, $url);
         $this->preparePayload($data);
-        $this->exec();
+        await $this->exec();
         return $this;
     }
 
@@ -294,7 +278,7 @@ class Curl
      * @param bool   $payload Whether the data should be transmitted trough payload or as get parameters of the string
      * @return self
      */
-    public function put($url, $data = array(), $payload = false)
+    public async function put(string $url, array $data = [], bool $payload = false): Awaitable
     {
         if ($payload === false) {
             $url .= '?'.http_build_query($data);
@@ -304,7 +288,7 @@ class Curl
 
         $this->setOpt(CURLOPT_URL, $url);
         $this->setOpt(CURLOPT_CUSTOMREQUEST, 'PUT');
-        $this->exec();
+        await $this->exec();
         return $this;
     }
 
@@ -318,7 +302,7 @@ class Curl
      * @param bool   $payload Whether the data should be transmitted trough payload or as get parameters of the string
      * @return self
      */
-    public function patch($url, $data = array(), $payload = false)
+    public async function patch(string $url, array $data = [], bool $payload = false): Awaitable
     {
         if ($payload === false) {
             $url .= '?'.http_build_query($data);
@@ -328,7 +312,7 @@ class Curl
 
         $this->setOpt(CURLOPT_URL, $url);
         $this->setOpt(CURLOPT_CUSTOMREQUEST, 'PATCH');
-        $this->exec();
+        await $this->exec();
         return $this;
     }
 
@@ -340,7 +324,7 @@ class Curl
      * @param bool   $payload Whether the data should be transmitted trough payload or as get parameters of the string
      * @return self
      */
-    public function delete($url, $data = array(), $payload = false)
+    public async function delete(string $url, array $data = [], bool $payload = false): Awaitable
     {
         if ($payload === false) {
             $url .= '?'.http_build_query($data);
@@ -349,7 +333,7 @@ class Curl
         }
         $this->setOpt(CURLOPT_URL, $url);
         $this->setOpt(CURLOPT_CUSTOMREQUEST, 'DELETE');
-        $this->exec();
+        await $this->exec();
         return $this;
     }
 
@@ -370,7 +354,7 @@ class Curl
      * @param string $password The password for the given username for the authentification
      * @return self
      */
-    public function setBasicAuthentication($username, $password)
+    public function setBasicAuthentication(string $username, string $password)
     {
         $this->setHttpAuth(self::AUTH_BASIC);
         $this->setOpt(CURLOPT_USERPWD, $username.':'.$password);
@@ -392,7 +376,7 @@ class Curl
      * @param string $value The value for the given header key
      * @return self
      */
-    public function setHeader($key, $value)
+    public function setHeader(string $key, string $value)
     {
         $this->_headers[$key] = $key.': '.$value;
         $this->setOpt(CURLOPT_HTTPHEADER, array_values($this->_headers));
@@ -413,7 +397,7 @@ class Curl
      * @param string $useragent The name of the user agent to set for the current request
      * @return self
      */
-    public function setUserAgent($useragent)
+    public function setUserAgent(string $useragent)
     {
         $this->setOpt(CURLOPT_USERAGENT, $useragent);
         return $this;
@@ -449,7 +433,7 @@ class Curl
      * @param string $value The value for the provided cookie name
      * @return self
      */
-    public function setCookie($key, $value)
+    public function setCookie(string $key, string $value)
     {
         $this->_cookies[$key] = $value;
         $this->setOpt(CURLOPT_COOKIE, http_build_query($this->_cookies, '', '; '));
@@ -466,7 +450,7 @@ class Curl
      * @param int   $option The curl option constante e.g. `CURLOPT_AUTOREFERER`, `CURLOPT_COOKIESESSION`
      * @param mixed $value  The value to pass for the given $option
      */
-    public function setOpt($option, $value)
+    public function setOpt(int $option, $value)
     {
         return curl_setopt($this->curl, $option, $value);
     }
@@ -536,7 +520,7 @@ class Curl
      * Was an 'info' header returned.
      * @return bool
      */
-    public function isInfo()
+    public function isInfo(): bool
     {
         return $this->http_status_code >= 100 && $this->http_status_code < 200;
     }
@@ -545,7 +529,7 @@ class Curl
      * Was an 'OK' response returned.
      * @return bool
      */
-    public function isSuccess()
+    public function isSuccess(): bool
     {
         return $this->http_status_code >= 200 && $this->http_status_code < 300;
     }
@@ -554,7 +538,7 @@ class Curl
      * Was a 'redirect' returned.
      * @return bool
      */
-    public function isRedirect()
+    public function isRedirect(): bool
     {
         return $this->http_status_code >= 300 && $this->http_status_code < 400;
     }
@@ -563,7 +547,7 @@ class Curl
      * Was an 'error' returned (client error or server error).
      * @return bool
      */
-    public function isError()
+    public function isError(): bool
     {
         return $this->http_status_code >= 400 && $this->http_status_code < 600;
     }
@@ -572,7 +556,7 @@ class Curl
      * Was a 'client error' returned.
      * @return bool
      */
-    public function isClientError()
+    public function isClientError(): bool
     {
         return $this->http_status_code >= 400 && $this->http_status_code < 500;
     }
@@ -581,7 +565,7 @@ class Curl
      * Was a 'server error' returned.
      * @return bool
      */
-    public function isServerError()
+    public function isServerError(): bool
     {
         return $this->http_status_code >= 500 && $this->http_status_code < 600;
     }

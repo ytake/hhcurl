@@ -1,8 +1,8 @@
 {
-  "name": "curl/curl",
-  "description": "cURL class for PHP",
-  "keywords": ["dot", "curl"],
-  "homepage": "https://github.com/php-mod/curl",
+  "name": "kubotak-is/hhcurl",
+  "description": "cURL class for HHVM/Hack",
+  "keywords": ["curl", "HHVM", "hack"],
+  "homepage": "https://github.com/kubotak-is/hhcurl",
   "type": "library",
   "license": "MIT",
   "authors": [
@@ -18,10 +18,14 @@
     {
       "name": "user52",
       "homepage": "https://github.com/user52"
+    },
+    {
+      "name": "kubotak",
+      "homepage": "https://github.com/kubotak-is"
     }
   ],
   "require": {
-    "php": ">=5.3.0",
+    "hhvm": ">=3.15",
     "ext-curl": "*"
   },
   "require-dev": {
@@ -29,8 +33,8 @@
     "squizlabs/php_codesniffer": "~2.1"
   },
   "autoload": {
-    "psr-0": {
-      "Curl": "src/"
+    "psr-4": {
+      "HHCurl\\": "src/"
     }
   }
 }

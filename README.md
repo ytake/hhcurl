@@ -1,53 +1,53 @@
-# PHP Curl Class
+# HHVM/Hack Curl Class
 
-This library provides an object-oriented wrapper of the PHP cURL extension.
+This library provides an object-oriented wrapper of the HHVM/Hack cURL extension.
 
-If you have questions or problems with installation or usage [create an Issue](https://github.com/php-mod/curl/issues).
+If you have questions or problems with installation or usage [create an Issue](https://github.com/kubotak-is/hhcurl/issues).
 
 ## Installation
 
 In order to install this library via composer run the following command in the console:
 
 ```sh
-composer require curl/curl
+$ hhvm --php $(which composer) require kubotak-is/hhcurl
 ```
 
 or add the package manually to your composer.json file in the require section:
 
 ```json
-"curl/curl": "^1.5"
+"kubotak-is/hhcurl": "^0.1"
 ```
 
 ## Usage examples
 
 ```php
-$curl = new Curl\Curl();
-$curl->get('http://www.example.com/');
+$curl = new HHCurl\Curl();
+\HH\Asio\join($curl->get('http://www.example.com/'));
 ```
 
 ```php
-$curl = new Curl\Curl();
-$curl->get('http://www.example.com/search', array(
+$curl = new HHCurl\Curl();
+\HH\Asio\join($curl->get('http://www.example.com/search', [
     'q' => 'keyword',
-));
+]));
 ```
 
 ```php
-$curl = new Curl\Curl();
-$curl->post('http://www.example.com/login/', array(
+$curl = new HHCurl\Curl();
+\HH\Asio\join($curl->post('http://www.example.com/login/', [
     'username' => 'myusername',
     'password' => 'mypassword',
-));
+]));
 ```
 
 ```php
-$curl = new Curl\Curl();
+$curl = new HHCurl\Curl();
 $curl->setBasicAuthentication('username', 'password');
 $curl->setUserAgent('');
 $curl->setReferrer('');
 $curl->setHeader('X-Requested-With', 'XMLHttpRequest');
 $curl->setCookie('key', 'value');
-$curl->get('http://www.example.com/');
+\HH\Asio\join($curl->get('http://www.example.com/'));
 
 if ($curl->error) {
     echo $curl->error_code;
@@ -61,32 +61,32 @@ var_dump($curl->response_headers);
 ```
 
 ```php
-$curl = new Curl\Curl();
+$curl = new HHCurl\Curl();
 $curl->setOpt(CURLOPT_RETURNTRANSFER, TRUE);
 $curl->setOpt(CURLOPT_SSL_VERIFYPEER, FALSE);
-$curl->get('https://encrypted.example.com/');
+\HH\Asio\join($curl->get('https://encrypted.example.com/'));
 ```
 
 ```php
-$curl = new Curl\Curl();
-$curl->put('http://api.example.com/user/', array(
+$curl = new HHCurl\Curl();
+\HH\Asio\join($curl->put('http://api.example.com/user/', [
     'first_name' => 'Zach',
     'last_name' => 'Borboa',
-));
+]));
 ```
 
 ```php
-$curl = new Curl\Curl();
-$curl->patch('http://api.example.com/profile/', array(
+$curl = new HHCurl\Curl();
+\HH\Asio\join($curl->patch('http://api.example.com/profile/', [
     'image' => '@path/to/file.jpg',
-));
+]));
 ```
 
 ```php
-$curl = new Curl\Curl();
-$curl->delete('http://api.example.com/user/', array(
+$curl = new HHCurl\Curl();
+\HH\Asio\join($curl->delete('http://api.example.com/user/', [
     'id' => '1234',
-));
+]));
 ```
 
 ```php

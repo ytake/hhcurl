@@ -241,7 +241,7 @@ class Curl
      * @param array  $data Optional arguments who are part of the url
      * @return self
      */
-    public async function get(string $url, array $data = []): Awaitable
+    public async function get(string $url, array $data = []): Awaitable<self>
     {
         if (count($data) > 0) {
             $this->setOpt(CURLOPT_URL, $url.'?'.http_build_query($data));
@@ -257,10 +257,10 @@ class Curl
      * Make a post request with optional post data.
      *
      * @param string $url  The url to make the get request
-     * @param array  $data Post data to pass to the url
+     * @param mixed  $data Post data to pass to the url
      * @return self
      */
-    public async function post(string $url, array $data = []): Awaitable
+    public async function post(string $url, mixed $data = []): Awaitable<self>
     {
         $this->setOpt(CURLOPT_URL, $url);
         $this->preparePayload($data);
@@ -274,11 +274,11 @@ class Curl
      * The put request data can be either sent via payload or as get paramters of the string.
      *
      * @param string $url     The url to make the get request
-     * @param array  $data    Optional data to pass to the $url
+     * @param mixed  $data    Optional data to pass to the $url
      * @param bool   $payload Whether the data should be transmitted trough payload or as get parameters of the string
      * @return self
      */
-    public async function put(string $url, array $data = [], bool $payload = false): Awaitable
+    public async function put(string $url, mixed $data = [], bool $payload = false): Awaitable<self>
     {
         if ($payload === false) {
             $url .= '?'.http_build_query($data);
@@ -298,11 +298,11 @@ class Curl
      * The patch request data can be either sent via payload or as get paramters of the string.
      *
      * @param string $url     The url to make the get request
-     * @param array  $data    Optional data to pass to the $url
+     * @param mixed  $data    Optional data to pass to the $url
      * @param bool   $payload Whether the data should be transmitted trough payload or as get parameters of the string
      * @return self
      */
-    public async function patch(string $url, array $data = [], bool $payload = false): Awaitable
+    public async function patch(string $url, mixed $data = [], bool $payload = false): Awaitable<self>
     {
         if ($payload === false) {
             $url .= '?'.http_build_query($data);
@@ -320,11 +320,11 @@ class Curl
      * Make a delete request with optional data.
      *
      * @param string $url     The url to make the delete request
-     * @param array  $data    Optional data to pass to the $url
+     * @param mixed  $data    Optional data to pass to the $url
      * @param bool   $payload Whether the data should be transmitted trough payload or as get parameters of the string
      * @return self
      */
-    public async function delete(string $url, array $data = [], bool $payload = false): Awaitable
+    public async function delete(string $url, mixed $data = [], bool $payload = false): Awaitable<self>
     {
         if ($payload === false) {
             $url .= '?'.http_build_query($data);
@@ -420,7 +420,7 @@ class Curl
      * @param string $referer An url to pass and will be set as referer header
      * @return self
      */
-    public function setReferer($referer)
+    public function setReferer($referer): self
     {
         $this->setOpt(CURLOPT_REFERER, $referer);
         return $this;
@@ -433,7 +433,7 @@ class Curl
      * @param string $value The value for the provided cookie name
      * @return self
      */
-    public function setCookie(string $key, string $value)
+    public function setCookie(string $key, string $value): self
     {
         $this->_cookies[$key] = $value;
         $this->setOpt(CURLOPT_COOKIE, http_build_query($this->_cookies, '', '; '));
@@ -463,7 +463,7 @@ class Curl
      * @param string $on
      * @return self
      */
-    public function verbose($on = true)
+    public function verbose($on = true): self
     {
         $this->setOpt(CURLOPT_VERBOSE, $on);
         return $this;
@@ -475,7 +475,7 @@ class Curl
      * In order to make multiple requests with the same curl object all settings requires to be reset.
      * @return self
      */
-    public function reset()
+    public function reset(): self
     {
         $this->close();
         $this->_cookies = array();
@@ -500,7 +500,7 @@ class Curl
      * Closing the current open curl resource.
      * @return self
      */
-    public function close()
+    public function close(): self
     {
         if (is_resource($this->curl)) {
             curl_close($this->curl);

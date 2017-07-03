@@ -519,7 +519,7 @@ class Curl
         $this->request_headers = null;
         $this->response_headers = null;
         $this->response = null;
-        $this->timeout = 5;
+        $this->setTimeOut(5);
         $this->url = '';
         $this->init();
         return $this;

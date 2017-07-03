@@ -2,6 +2,8 @@
 
 namespace HHCurl;
 
+use HHCurl\Exceptions\TimeOutException;
+
 /**
  * An object-oriented wrapper of the HHVM/Hack cURL extension.
  *
@@ -117,6 +119,16 @@ class Curl
     public ?string $response = null;
 
     /**
+     * @var int $timeout
+     */
+    private int $timeout;
+
+    /**
+     * @var string $url
+     */
+    private string $url;
+
+    /**
      * Constructor ensures the available curl extension is loaded.
      *
      * @throws \ErrorException
@@ -145,6 +157,7 @@ class Curl
         $this->setOpt(CURLINFO_HEADER_OUT, true);
         $this->setOpt(CURLOPT_HEADER, true);
         $this->setOpt(CURLOPT_RETURNTRANSFER, true);
+        $this->setTimeOut(5);
         return $this;
     }
 
@@ -184,6 +197,10 @@ class Curl
         $this->http_error_message = $this->error ? (isset($this->response_headers['0']) ? $this->response_headers['0'] : '') : '';
         $this->error_message = $this->curl_error ? $this->curl_error_message : $this->http_error_message;
 
+        if (empty($this->response) && !$this->curl_error && $this->http_status_code === 0) {
+            throw new TimeOutException("TimeOut Curl: {$this->timeout} sec, [url] {$this->url}");
+        }
+
         return $this->error_code;
     }
 
@@ -220,7 +237,19 @@ class Curl
         $this->setOpt(CURLOPT_HTTPAUTH, $httpauth);
     }
 
-    // public methods
+    /**
+     * @param string $url
+     * @param array $data = []
+     */
+    protected function setUrl(string $url, array $data = []): void
+    {
+        $this->url = $url;
+        if (count($data) > 0) {
+            $this->setOpt(CURLOPT_URL, $url.'?'.http_build_query($data));
+        } else {
+            $this->setOpt(CURLOPT_URL, $url);
+        }
+    }
 
     /**
      * @deprecated calling exec() directly is discouraged
@@ -229,8 +258,6 @@ class Curl
     {
         return \HH\Asio\join($this->exec());
     }
-
-    // functions
 
     /**
      * Make a get request with optional data.
@@ -243,11 +270,7 @@ class Curl
      */
     public async function get(string $url, array $data = []): Awaitable
     {
-        if (count($data) > 0) {
-            $this->setOpt(CURLOPT_URL, $url.'?'.http_build_query($data));
-        } else {
-            $this->setOpt(CURLOPT_URL, $url);
-        }
+        $this->setUrl($url, $data);
         $this->setOpt(CURLOPT_HTTPGET, true);
         await $this->exec();
         return $this;
@@ -262,7 +285,7 @@ class Curl
      */
     public async function post(string $url, mixed $data = []): Awaitable
     {
-        $this->setOpt(CURLOPT_URL, $url);
+        $this->setUrl($url);
         $this->preparePayload($data);
         await $this->exec();
         return $this;
@@ -286,7 +309,7 @@ class Curl
             $this->preparePayload($data);
         }
 
-        $this->setOpt(CURLOPT_URL, $url);
+        $this->setUrl($url);
         $this->setOpt(CURLOPT_CUSTOMREQUEST, 'PUT');
         await $this->exec();
         return $this;
@@ -310,7 +333,7 @@ class Curl
             $this->preparePayload($data);
         }
 
-        $this->setOpt(CURLOPT_URL, $url);
+        $this->setUrl($url);
         $this->setOpt(CURLOPT_CUSTOMREQUEST, 'PATCH');
         await $this->exec();
         return $this;
@@ -331,7 +354,7 @@ class Curl
         } else {
             $this->preparePayload($data);
         }
-        $this->setOpt(CURLOPT_URL, $url);
+        $this->setUrl($url);
         $this->setOpt(CURLOPT_CUSTOMREQUEST, 'DELETE');
         await $this->exec();
         return $this;
@@ -404,15 +427,6 @@ class Curl
     }
 
     /**
-     * @deprecated Call setReferer() instead
-     */
-    public function setReferrer($referrer)
-    {
-        $this->setReferer($referrer);
-        return $this;
-    }
-
-    /**
      * Set the HTTP referer header.
      *
      * The $referer informations can help identify the requested client where the requested was made.
@@ -423,6 +437,19 @@ class Curl
     public function setReferer($referer)
     {
         $this->setOpt(CURLOPT_REFERER, $referer);
+        return $this;
+    }
+
+    /**
+     * Set cUrl Time Out
+     * 
+     * @param ?int $secound
+     * @return self
+     */
+    public function setTimeOut(int $secound = 5)
+    {
+        $this->timeout = $secound;
+        $this->setOpt(CURLOPT_TIMEOUT, $this->timeout);
         return $this;
     }
 
@@ -478,8 +505,8 @@ class Curl
     public function reset()
     {
         $this->close();
-        $this->_cookies = array();
-        $this->_headers = array();
+        $this->_cookies = [];
+        $this->_headers = [];
         $this->error = false;
         $this->error_code = 0;
         $this->error_message = null;
@@ -492,6 +519,8 @@ class Curl
         $this->request_headers = null;
         $this->response_headers = null;
         $this->response = null;
+        $this->timeout = 5;
+        $this->url = '';
         $this->init();
         return $this;
     }

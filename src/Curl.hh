@@ -121,12 +121,12 @@ class Curl
     /**
      * @var int $timeout
      */
-    private int $timeout;
+    private int $timeout = 5;
 
     /**
      * @var string $url
      */
-    private string $url;
+    private string $url = '';
 
     /**
      * Constructor ensures the available curl extension is loaded.

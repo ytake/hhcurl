@@ -360,6 +360,24 @@ class Curl
         return $this;
     }
 
+    /**
+     * Make a head request with optional data.
+     *
+     * The get request has no body data, the data will be correctly added to the $url with the http_build_query() method.
+     *
+     * @param string $url  The url to make the get request for
+     * @param array  $data Optional arguments who are part of the url
+     * @return self
+     */
+    public async function head(string $url, array $data = []): Awaitable
+    {
+        $this->setUrl($url, $data);
+        $this->setOpt(CURLOPT_HTTPGET, true);
+        $this->setOpt(CURLOPT_NOBODY, true);
+        await $this->exec();
+        return $this;
+    }
+
     // setters
 
     /**

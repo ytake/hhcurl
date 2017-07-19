@@ -142,6 +142,14 @@ class Curl
         $this->init();
     }
 
+    /**
+     * @return Curl
+     */
+    public function getInstance(): Curl
+    {
+        return new self();
+    }
+
     // private methods
 
     /**

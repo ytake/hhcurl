@@ -109,9 +109,9 @@ class Curl
     public $request_headers = null;
 
     /**
-     * @var string|array TBD (ensure type) Contains the response header informations
+     * @var array TBD (ensure type) Contains the response header informations
      */
-    public $response_headers = null;
+    public $response_headers = [];
 
     /**
      * @var string Contains the response from the curl request
@@ -127,6 +127,11 @@ class Curl
      * @var string $url
      */
     private string $url = '';
+
+    /**
+     * @var boolean Whether the current section of response headers is after 'HTTP/1.1 100 Continue'
+     */
+    protected $response_header_continue = false;
 
     /**
      * Constructor ensures the available curl extension is loaded.
@@ -163,8 +168,9 @@ class Curl
         $this->curl = curl_init();
         $this->setUserAgent(self::USER_AGENT);
         $this->setOpt(CURLINFO_HEADER_OUT, true);
-        $this->setOpt(CURLOPT_HEADER, true);
+        $this->setOpt(CURLOPT_HEADER, false);
         $this->setOpt(CURLOPT_RETURNTRANSFER, true);
+        $this->setOpt(CURLOPT_HEADERFUNCTION, [$this, 'addResponseHeaderLine']);
         $this->setTimeOut(5);
         return $this;
     }
@@ -183,27 +189,19 @@ class Curl
      */
     protected async function exec(): Awaitable
     {
-        $this->response = await $this->curl_exce();
-        $this->curl_error_code = curl_errno($this->curl);
+        $this->response_headers   = [];
+        $this->response           = await $this->curl_exce();
+        $this->curl_error_code    = curl_errno($this->curl);
         $this->curl_error_message = curl_error($this->curl);
-        $this->curl_error = !($this->curl_error_code === 0);
-        $this->http_status_code = curl_getinfo($this->curl, CURLINFO_HTTP_CODE);
-        $this->http_error = in_array(floor($this->http_status_code / 100), array(4, 5));
-        $this->error = $this->curl_error || $this->http_error;
-        $this->error_code = $this->error ? ($this->curl_error ? $this->curl_error_code : $this->http_status_code) : 0;
+        $this->curl_error         = !($this->curl_error_code === 0);
+        $this->http_status_code   = curl_getinfo($this->curl, CURLINFO_HTTP_CODE);
+        $this->http_error         = in_array(floor($this->http_status_code / 100), [4, 5]);
+        $this->error              = $this->curl_error || $this->http_error;
+        $this->error_code         = $this->error ? ($this->curl_error ? $this->curl_error_code : $this->http_status_code) : 0;
 
-        $this->request_headers = preg_split('/\r\n/', curl_getinfo($this->curl, CURLINFO_HEADER_OUT), null, PREG_SPLIT_NO_EMPTY);
-        $this->response_headers = '';
-        if (!(strpos($this->response, "\r\n\r\n") === false)) {
-            list($response_header, $this->response) = explode("\r\n\r\n", $this->response, 2);
-            while (strtolower(trim($response_header)) === 'http/1.1 100 continue') {
-                list($response_header, $this->response) = explode("\r\n\r\n", $this->response, 2);
-            }
-            $this->response_headers = preg_split('/\r\n/', $response_header, null, PREG_SPLIT_NO_EMPTY);
-        }
-
+        $this->request_headers    = preg_split('/\r\n/', curl_getinfo($this->curl, CURLINFO_HEADER_OUT), null, PREG_SPLIT_NO_EMPTY);
         $this->http_error_message = $this->error ? (isset($this->response_headers['0']) ? $this->response_headers['0'] : '') : '';
-        $this->error_message = $this->curl_error ? $this->curl_error_message : $this->http_error_message;
+        $this->error_message      = $this->curl_error ? $this->curl_error_message : $this->http_error_message;
 
         if (empty($this->response) && !$this->curl_error && $this->http_status_code === 0) {
             throw new TimeOutException("TimeOut Curl: {$this->timeout} sec, [url] {$this->url}");
@@ -211,6 +209,30 @@ class Curl
 
         return $this->error_code;
     }
+
+    /**
+     * Handle writing the response headers
+     *
+     * @param resource $curl The current curl resource
+     * @param string $header_line A line from the list of response headers
+     *
+     * @return int Returns the length of the $header_line
+     */
+    public function addResponseHeaderLine($curl, $header_line)
+    {
+        $trimmed_header = trim($header_line, "\r\n");
+
+        if ($trimmed_header === "") {
+            $this->response_header_continue = false;
+        } else if (strtolower($trimmed_header) === 'http/1.1 100 continue') {
+            $this->response_header_continue = true;
+        } else if (!$this->response_header_continue) {
+            $this->response_headers[] = $trimmed_header;
+        }
+        
+        return strlen($header_line);
+    }
+
 
     /**
      * @param array|object|string $data
@@ -311,10 +333,12 @@ class Curl
      */
     public async function put(string $url, mixed $data = [], bool $payload = false): Awaitable
     {
-        if ($payload === false) {
-            $url .= '?'.http_build_query($data);
-        } else {
-            $this->preparePayload($data);
+        if (!empty($data)) {
+            if ($payload === false) {
+                $url .= '?'.http_build_query($data);
+            } else {
+                $this->preparePayload($data);
+            }
         }
 
         $this->setUrl($url);
@@ -335,10 +359,12 @@ class Curl
      */
     public async function patch(string $url, mixed $data = [], bool $payload = false): Awaitable
     {
-        if ($payload === false) {
-            $url .= '?'.http_build_query($data);
-        } else {
-            $this->preparePayload($data);
+        if (!empty($data)) {
+            if ($payload === false) {
+                $url .= '?'.http_build_query($data);
+            } else {
+                $this->preparePayload($data);
+            }
         }
 
         $this->setUrl($url);
@@ -357,11 +383,14 @@ class Curl
      */
     public async function delete(string $url, mixed $data = [], bool $payload = false): Awaitable
     {
-        if ($payload === false) {
-            $url .= '?'.http_build_query($data);
-        } else {
-            $this->preparePayload($data);
+        if (!empty($data)) {
+            if ($payload === false) {
+                $url .= '?'.http_build_query($data);
+            } else {
+                $this->preparePayload($data);
+            }
         }
+
         $this->setUrl($url);
         $this->setOpt(CURLOPT_CUSTOMREQUEST, 'DELETE');
         await $this->exec();
@@ -509,6 +538,33 @@ class Curl
     }
 
     /**
+     * Get customized curl options.
+     *
+     * To see a full list of options: http://php.net/curl_getinfo
+     *
+     * @see http://php.net/curl_getinfo
+     *
+     * @param int   $option The curl option constante e.g. `CURLOPT_AUTOREFERER`, `CURLOPT_COOKIESESSION`
+     * @param mixed $value  The value to check for the given $option
+     */
+    public function getOpt($option)
+    {
+        return curl_getinfo($this->curl, $option);
+    }
+    
+     /**
+     * Return the endpoint set for curl
+     *
+     * @see http://php.net/curl_getinfo
+     *
+     * @return string of endpoint
+     */
+    public function getEndpoint(): string
+    {
+        return $this->getOpt(CURLINFO_EFFECTIVE_URL);
+    }
+
+    /**
      * Enable verbositiy.
      *
      * @todo As to keep naming convention it should be renamed to `setVerbose()`
@@ -543,7 +599,7 @@ class Curl
         $this->http_status_code = 0;
         $this->http_error_message = null;
         $this->request_headers = null;
-        $this->response_headers = null;
+        $this->response_headers = [];
         $this->response = null;
         $this->setTimeOut(5);
         $this->url = '';

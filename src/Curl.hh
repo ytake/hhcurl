@@ -2,6 +2,7 @@
 
 namespace HHCurl;
 
+use HHCurl\Exceptions\HHCurlException;
 use HHCurl\Exceptions\TimeOutException;
 
 /**
@@ -199,7 +200,12 @@ class Curl
         $this->error              = $this->curl_error || $this->http_error;
         $this->error_code         = $this->error ? ($this->curl_error ? $this->curl_error_code : $this->http_status_code) : 0;
 
-        $this->request_headers    = preg_split('/\r\n/', curl_getinfo($this->curl, CURLINFO_HEADER_OUT), null, PREG_SPLIT_NO_EMPTY);
+        $ci = curl_getinfo($this->curl, CURLINFO_HEADER_OUT);
+        if ($ci === false) {
+            throw new HHCurlException("Failed Curl Get Info, [url] {$this->url}");
+        }
+
+        $this->request_headers    = preg_split('/\r\n/', $ci, null, PREG_SPLIT_NO_EMPTY);
         $this->http_error_message = $this->error ? (isset($this->response_headers['0']) ? $this->response_headers['0'] : '') : '';
         $this->error_message      = $this->curl_error ? $this->curl_error_message : $this->http_error_message;
 

@@ -178,9 +178,34 @@ class Curl
 
     // protected methods
 
-    protected async function curl_exce(): Awaitable
+    protected async function curl_exce(): Awaitable<string>
     {
-       return await \HH\Asio\curl_exec($this->curl);
+        $mh = curl_multi_init();
+        curl_multi_add_handle($mh, $this->curl);
+        $active = -1;
+
+        do {
+            $ret = curl_multi_exec($mh, $active);
+        } while ($ret == CURLM_CALL_MULTI_PERFORM);
+
+        while ($active && $ret == CURLM_OK) {
+            $flag = await curl_multi_await($mh, 2.0);
+
+            if ($flag === -1) {
+                await \HH\Asio\usleep(100);
+            }
+
+            do {
+                $ret = curl_multi_exec($mh, $active);
+            } while ($ret == CURLM_CALL_MULTI_PERFORM);
+        }
+
+        $out = curl_multi_getcontent($this->curl);
+
+        curl_multi_remove_handle($mh, $this->curl);
+        curl_multi_close($mh);
+
+        return (string) $out;
     }
 
     /**
@@ -212,6 +237,8 @@ class Curl
         if (empty($this->response) && !$this->curl_error && $this->http_status_code === 0) {
             throw new TimeOutException("TimeOut Curl: {$this->timeout} sec, [url] {$this->url}");
         }
+
+        curl_close($this->curl);
 
         return $this->error_code;
     }

@@ -176,13 +176,6 @@ class Curl
         return $this;
     }
 
-    // protected methods
-
-    protected async function curl_exce(): Awaitable
-    {
-       return await \HH\Asio\curl_exec($this->curl);
-    }
-
     /**
      * Execute the curl request based on the respectiv settings.
      *
@@ -191,7 +184,25 @@ class Curl
     protected async function exec(): Awaitable
     {
         $this->response_headers   = [];
-        $this->response           = await $this->curl_exce();
+
+        $mh = curl_multi_init();
+        curl_multi_add_handle($mh, $this->curl);
+        $active = -1;
+
+        do {
+            $ret = curl_multi_exec($mh, $active);
+        } while ($ret == CURLM_CALL_MULTI_PERFORM);
+        while ($active && $ret == CURLM_OK) {
+            $flag = await curl_multi_await($mh, 2.0);
+            if ($flag === -1) {
+                await \HH\Asio\usleep(100);
+            }
+            do {
+                $ret = curl_multi_exec($mh, $active);
+            } while ($ret == CURLM_CALL_MULTI_PERFORM);
+        }
+
+        $this->response           = (string) curl_multi_getcontent($this->curl);
         $this->curl_error_code    = curl_errno($this->curl);
         $this->curl_error_message = curl_error($this->curl);
         $this->curl_error         = !($this->curl_error_code === 0);
@@ -199,8 +210,12 @@ class Curl
         $this->http_error         = in_array(floor($this->http_status_code / 100), [4, 5]);
         $this->error              = $this->curl_error || $this->http_error;
         $this->error_code         = $this->error ? ($this->curl_error ? $this->curl_error_code : $this->http_status_code) : 0;
+        $ci                       = curl_getinfo($this->curl, CURLINFO_HEADER_OUT);
 
-        $ci = curl_getinfo($this->curl, CURLINFO_HEADER_OUT);
+        curl_multi_remove_handle($mh, $this->curl);
+        curl_multi_close($mh);
+        curl_close($this->curl);
+
         if ($ci === false) {
             throw new HHCurlException("Failed Curl Get Info, [url] {$this->url}");
         }
@@ -285,14 +300,6 @@ class Curl
         } else {
             $this->setOpt(CURLOPT_URL, $url);
         }
-    }
-
-    /**
-     * @deprecated calling exec() directly is discouraged
-     */
-    public function _exec()
-    {
-        return \HH\Asio\join($this->exec());
     }
 
     /**

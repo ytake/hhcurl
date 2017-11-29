@@ -1,19 +1,44 @@
-<?php
+<?hh // strict
 
-namespace Curl;
+use HHCurl\Curl;
+use PHPUnit\Framework\TestCase;
 
-class CurlTest extends \PHPUnit_Framework_TestCase
+class CurlTest extends TestCase
 {
+  const string TEST_URL = 'http://localhost';
 
+  private function curl(): Curl {
+	$curl = new Curl();
+	$curl->setOpt(CURLOPT_SSL_VERIFYPEER, false);
+	$curl->setOpt(CURLOPT_SSL_VERIFYHOST, false);
+	return $curl;
+  }
+  
+  protected function server(string $request_method, mixed $data=''): ?string {
+	$request_method = strtolower($request_method);
+	$c = $this->curl();
+	/* UNSAFE_EXPR */ $c->$request_method(self::TEST_URL . '/server.php', $data);
+	return $c->response;
+  }
+
+  public function testExtensionLoaded(): void {
+    $this->assertTrue(extension_loaded('curl'));
+  }
+
+  public function testUserAgent(): void {
+	$c = $this->curl();
+    $c->setUserAgent(Curl::USER_AGENT);
+    $this->assertEquals(Curl::USER_AGENT, $this->server('GET', [
+	  'test' => 'server',
+	  'key' => 'HTTP_USER_AGENT',
+	]));
+  }
+/*
 	const TEST_URL = 'http://localhost';
 
-	/**
-	 *
-	 * @var Curl
-	 */
-	protected $curl;
+	protected Curl $curl;
 
-	function setUp() {
+	protected function setUp() {
 		$this->curl = new Curl();
 		$this->curl->setOpt(CURLOPT_SSL_VERIFYPEER, FALSE);
 		$this->curl->setOpt(CURLOPT_SSL_VERIFYHOST, FALSE);
@@ -261,4 +286,5 @@ class CurlTest extends \PHPUnit_Framework_TestCase
 		file_put_contents($tmp_filename, $this->create_png());
 		return $tmp_filename;
 	}
+*/
 }

@@ -40,7 +40,7 @@ class Curl {
 
   public mixed $request_headers = null;
 
-  public Map<mixed, mixed> $response_headers = Map{};
+  public Map<mixed, mixed> $response_headers = Map {};
 
   public ?string $response = null;
 
@@ -56,11 +56,6 @@ class Curl {
    * @throws \ErrorException
    */
   public function __construct() {
-    if (!extension_loaded('curl')) {
-      throw new \ErrorException(
-        'The cURL extensions is not loaded, make sure you have installed the cURL extension: https://php.net/manual/curl.setup.php',
-      );
-    }
     $this->init();
   }
 
@@ -94,7 +89,7 @@ class Curl {
    * @return int Returns the error code for the current curl request
    */
   protected async function exec(): Awaitable<int> {
-    $this->response_headers = Map{};
+    $this->response_headers = Map {};
 
     $mh = curl_multi_init();
     curl_multi_add_handle($mh, $this->curl);
@@ -137,18 +132,24 @@ class Curl {
       throw new HHCurlException("Failed Curl Get Info, [url] {$this->url}");
     }
 
-    $this->request_headers = preg_split('/\r\n/', $ci, null, PREG_SPLIT_NO_EMPTY);
+    $this->request_headers =
+      preg_split('/\r\n/', $ci, null, PREG_SPLIT_NO_EMPTY);
 
     $httpErrorMessage = $this->response_headers->get('0');
     if (is_null($httpErrorMessage)) {
       $httpErrorMessage = '';
     }
     $this->http_error_message = $this->error ? strval($httpErrorMessage) : '';
-    $this->error_message = $this->curl_error ? $this->curl_error_message : $this->http_error_message;
+    $this->error_message =
+      $this->curl_error
+        ? $this->curl_error_message
+        : $this->http_error_message;
 
     if (is_null($this->response) || $this->response === '') {
-      if(!$this->curl_error && $this->http_status_code === 0) {
-        throw new TimeOutException("TimeOut Curl: {$this->timeout} sec, [url] {$this->url}",);
+      if (!$this->curl_error && $this->http_status_code === 0) {
+        throw new TimeOutException(
+          "TimeOut Curl: {$this->timeout} sec, [url] {$this->url}",
+        );
       }
     }
     return $this->error_code;
@@ -162,18 +163,20 @@ class Curl {
    *
    * @return int Returns the length of the $header_line
    */
-  public function addResponseHeaderLine(resource $curl, string $header_line): int {
-    $trimmed_header = trim($header_line, "\r\n");
-
-    if ($trimmed_header === "") {
+  public function addResponseHeaderLine(
+    resource $curl,
+    string $headerLine,
+  ): int {
+    $trimmedHeader = trim($headerLine, "\r\n");
+    if ($trimmedHeader === "") {
       $this->response_header_continue = false;
-    } else if (strtolower($trimmed_header) === 'http/1.1 100 continue') {
+    } else if (strtolower($trimmedHeader) === 'http/1.1 100 continue') {
       $this->response_header_continue = true;
     } else if (!$this->response_header_continue) {
-      $this->response_headers[] = $trimmed_header;
+      $this->response_headers->set($trimmedHeader, $trimmedHeader);
     }
 
-    return strlen($header_line);
+    return strlen($headerLine);
   }
 
   /**
@@ -181,12 +184,14 @@ class Curl {
    */
   protected function preparePayload(mixed $data): void {
     $this->setOpt(CURLOPT_POST, true);
-
+    if (is_null($data)) {
+      $data = '';
+    }
     if (is_array($data) || is_object($data)) {
       $data = http_build_query($data);
     }
-
-    $this->setOpt(CURLOPT_POSTFIELDS, $data);
+    $value = strval($data);
+    $this->setOpt(CURLOPT_POSTFIELDS, $value);
   }
 
   /**
@@ -211,7 +216,10 @@ class Curl {
    * @param string $url
    * @param array $data = []
    */
-  protected function setUrl(string $url, array<mixed, mixed> $data = []): void {
+  protected function setUrl(
+    string $url,
+    array<mixed, mixed> $data = [],
+  ): void {
     $this->url = $url;
     $this->setOpt(CURLOPT_URL, $url);
     if (count($data) > 0) {
@@ -228,11 +236,13 @@ class Curl {
    * @param array  $data Optional arguments who are part of the url
    * @return self
    */
-  public async function get(string $url, array<mixed, mixed> $data = []): Awaitable<int> {
+  public async function get(
+    string $url,
+    array<mixed, mixed> $data = [],
+  ): Awaitable<int> {
     $this->setUrl($url, $data);
     $this->setOpt(CURLOPT_HTTPGET, true);
     return await $this->exec();
-    // return $this;
   }
 
   /**
@@ -246,7 +256,6 @@ class Curl {
     $this->setUrl($url);
     $this->preparePayload($data);
     return await $this->exec();
-    // return $this;
   }
 
   /**
@@ -275,7 +284,6 @@ class Curl {
     $this->setUrl($url);
     $this->setOpt(CURLOPT_CUSTOMREQUEST, 'PUT');
     return await $this->exec();
-    // return $this;
   }
 
   /**
@@ -304,7 +312,6 @@ class Curl {
     $this->setUrl($url);
     $this->setOpt(CURLOPT_CUSTOMREQUEST, 'PATCH');
     return await $this->exec();
-    // return $this;
   }
 
   /**
@@ -342,7 +349,10 @@ class Curl {
    * @param array  $data Optional arguments who are part of the url
    * @return self
    */
-  public async function head(string $url, array<mixed, mixed> $data = []): Awaitable<int> {
+  public async function head(
+    string $url,
+    array<mixed, mixed> $data = [],
+  ): Awaitable<int> {
     $this->setUrl($url, $data);
     $this->setOpt(CURLOPT_HTTPGET, true);
     $this->setOpt(CURLOPT_NOBODY, true);
@@ -366,7 +376,10 @@ class Curl {
    * @param string $password The password for the given username for the authentification
    * @return self
    */
-  public function setBasicAuthentication(string $username, string $password): this {
+  public function setBasicAuthentication(
+    string $username,
+    string $password,
+  ): this {
     $this->setHttpAuth(self::AUTH_BASIC);
     $this->setOpt(CURLOPT_USERPWD, $username.':'.$password);
     return $this;
@@ -525,7 +538,7 @@ class Curl {
     $this->http_status_code = 0;
     $this->http_error_message = null;
     $this->request_headers = null;
-    $this->response_headers = Map{};
+    $this->response_headers = Map {};
     $this->response = null;
     $this->setTimeOut(5);
     $this->url = '';

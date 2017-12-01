@@ -23,8 +23,9 @@ $data_mapping = array(
 );
 
 if(isset($data_mapping[$test])) {
-    $data = $$data_mapping[$test];
-    $value = isset($data[$key]) ? $data[$key] : '';
+    $data = $data_mapping[$test];
+    $global = ${$data};
+    $value = isset($global[$key]) ? $global[$key] : '';
 echo $value;
 } else {
     echo "Error.";

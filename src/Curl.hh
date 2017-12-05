@@ -44,11 +44,13 @@ class Curl {
 
   public ?string $response = null;
 
-  private int $timeout = 5;
+  private int $timeout = 60;
 
   private string $url = '';
 
   protected bool $response_header_continue = false;
+
+  private int $retry_count = 2;
 
   /**
    * Constructor ensures the available curl extension is loaded.
@@ -79,7 +81,6 @@ class Curl {
     $this->setOpt(CURLOPT_HEADER, false);
     $this->setOpt(CURLOPT_RETURNTRANSFER, true);
     $this->setOpt(CURLOPT_HEADERFUNCTION, [$this, 'addResponseHeaderLine']);
-    $this->setTimeOut(5);
     return $this;
   }
 
@@ -93,20 +94,33 @@ class Curl {
 
     $mh = curl_multi_init();
     curl_multi_add_handle($mh, $this->curl);
-    $active = -1;
-
+    $sleep_ms = 10;
+    $try_count = 0;
     do {
-      $ret = curl_multi_exec($mh, $active);
-    } while ($ret == CURLM_CALL_MULTI_PERFORM);
-    while ($active && $ret == CURLM_OK) {
-      $flag = await curl_multi_await($mh, 2.0);
-      if ($flag === -1) {
-        await \HH\Asio\usleep(100);
-      }
+      $active = 1;
       do {
-        $ret = curl_multi_exec($mh, $active);
-      } while ($ret == CURLM_CALL_MULTI_PERFORM);
-    }
+        $status = curl_multi_exec($mh, $active);
+      } while ($status == CURLM_CALL_MULTI_PERFORM);
+      if (!$active) break;
+      $select = await curl_multi_await($mh, (float) $this->timeout);
+      /* If cURL is built without ares suppor, DNS queries don't have a socket
+      * to wait on, so curl_multi_await() (and curl_select() in PHP5) will return
+      * -1, and polling is required.
+      */
+      // BUGFIX secret is iterate -1 are Abort HHVM
+      if ($try_count >= $this->retry_count && $select === -1) {
+        throw new TimeOutException("TimeOut Curl: {$this->timeout} sec, [url] {$this->url}");
+      }
+      if ($select === -1) {
+        $try_count++;
+        await SleepWaitHandle::create($sleep_ms * 1000);
+        if ($sleep_ms < 1000) {
+          $sleep_ms *= 2;
+        }
+      } else {
+        $sleep_ms = 10;
+      }
+    } while ($status === CURLM_OK);
 
     $this->response = (string) curl_multi_getcontent($this->curl);
     $this->curl_error_code = curl_errno($this->curl);
@@ -451,6 +465,17 @@ class Curl {
   }
 
   /**
+   * Set Curl Retry Count
+   *
+   * @param ?int $count
+   * @return self
+   */
+  public function setRetryCount(int $count = 2): this {
+      $this->retry_count = $count;
+      return $this;
+  }
+
+  /**
    * Set contents of HTTP Cookie header.
    *
    * @param string $key   The name of the cookie
@@ -540,7 +565,7 @@ class Curl {
     $this->request_headers = null;
     $this->response_headers = Map {};
     $this->response = null;
-    $this->setTimeOut(5);
+    $this->setTimeOut(60);
     $this->url = '';
     $this->init();
     return $this;

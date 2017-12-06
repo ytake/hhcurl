@@ -50,8 +50,6 @@ class Curl {
 
   protected bool $response_header_continue = false;
 
-  private int $retry_count = 2;
-
   /**
    * Constructor ensures the available curl extension is loaded.
    *
@@ -92,37 +90,7 @@ class Curl {
   protected async function exec(): Awaitable<int> {
     $this->response_headers = Map {};
 
-    $mh = curl_multi_init();
-    curl_multi_add_handle($mh, $this->curl);
-    $sleep_ms = 10;
-    $try_count = 0;
-    do {
-      $active = 1;
-      do {
-        $status = curl_multi_exec($mh, $active);
-      } while ($status == CURLM_CALL_MULTI_PERFORM);
-      if (!$active) break;
-      $select = await curl_multi_await($mh, (float) $this->timeout);
-      /* If cURL is built without ares suppor, DNS queries don't have a socket
-      * to wait on, so curl_multi_await() (and curl_select() in PHP5) will return
-      * -1, and polling is required.
-      */
-      // BUGFIX secret is iterate -1 are Abort HHVM
-      if ($try_count >= $this->retry_count && $select === -1) {
-        throw new TimeOutException("TimeOut Curl: {$this->timeout} sec, [url] {$this->url}");
-      }
-      if ($select === -1) {
-        $try_count++;
-        await SleepWaitHandle::create($sleep_ms * 1000);
-        if ($sleep_ms < 1000) {
-          $sleep_ms *= 2;
-        }
-      } else {
-        $sleep_ms = 10;
-      }
-    } while ($status === CURLM_OK);
-
-    $this->response = (string) curl_multi_getcontent($this->curl);
+    $this->response = (string) curl_exec($this->curl);
     $this->curl_error_code = curl_errno($this->curl);
     $this->curl_error_message = curl_error($this->curl);
     $this->curl_error = !($this->curl_error_code === 0);
@@ -137,9 +105,6 @@ class Curl {
              : $this->http_status_code)
         : 0;
     $ci = curl_getinfo($this->curl, CURLINFO_HEADER_OUT);
-
-    curl_multi_remove_handle($mh, $this->curl);
-    curl_multi_close($mh);
     curl_close($this->curl);
 
     if ($ci === false) {
@@ -462,17 +427,6 @@ class Curl {
     $this->timeout = $secound;
     $this->setOpt(CURLOPT_TIMEOUT, $this->timeout);
     return $this;
-  }
-
-  /**
-   * Set Curl Retry Count
-   *
-   * @param ?int $count
-   * @return self
-   */
-  public function setRetryCount(int $count = 2): this {
-      $this->retry_count = $count;
-      return $this;
   }
 
   /**

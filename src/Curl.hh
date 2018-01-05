@@ -88,15 +88,10 @@ class Curl {
    * @param $mh - A cURL multi handle returned from
    *              [`curl_multi_init`](http://php.net/manual/en/function.curl-multi-init.php).
    *              [`curl_multi_init`](http://php.net/manual/en/function.curl-multi-init.php).
-   * @param $timeout - The time to wait for a response indicating some activity.
-   * @param $timeout - The time (in seconds) to wait for a response indicating some activity.
    * @return Awaitable<int>
    */
-  private async function hh_curl_multi_await(
-    resource $mh,
-    float $timeout = 1.0
-  ): Awaitable<int> {
-    $finish_by = microtime(true) + $timeout;
+  private async function hh_curl_multi_await(resource $mh): Awaitable<int> {
+    $finish_by = microtime(true) + 1.0;
     do {
       $result = curl_multi_select($mh, 0.0);
       if ($result !== 0) {
@@ -125,7 +120,7 @@ class Curl {
       } while ($status == CURLM_CALL_MULTI_PERFORM);
       if (!$active) break;
       /* Original implementation of curl_multi_await */
-      $select = await $this->hh_curl_multi_await($mh, 1.0);
+      $select = await $this->hh_curl_multi_await($mh);
       /* If cURL is built without ares suppor, DNS queries don't have a socket
       * to wait on, so curl_multi_await() (and curl_select() in PHP5) will return
       * -1, and polling is required.

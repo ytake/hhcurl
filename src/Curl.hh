@@ -91,7 +91,7 @@ class Curl {
    * @return Awaitable<int>
    */
   private async function hh_curl_multi_await(resource $mh): Awaitable<int> {
-    $finish_by = microtime(true) + 1.0;
+    $finish_by = microtime(true) + 0.2;
     do {
       $result = curl_multi_select($mh, 0.0);
       if ($result !== 0) {

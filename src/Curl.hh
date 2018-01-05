@@ -85,6 +85,29 @@ class Curl {
   }
 
   /**
+   * @param $mh - A cURL multi handle returned from
+   *              [`curl_multi_init`](http://php.net/manual/en/function.curl-multi-init.php).
+   *              [`curl_multi_init`](http://php.net/manual/en/function.curl-multi-init.php).
+   * @param $timeout - The time to wait for a response indicating some activity.
+   * @param $timeout - The time (in seconds) to wait for a response indicating some activity.
+   * @return Awaitable<int>
+   */
+  private async function hh_curl_multi_await(
+    resource $mh,
+    float $timeout = 1.0
+  ): Awaitable<int> {
+    $finish_by = microtime(true) + $timeout;
+    do {
+      $result = curl_multi_select($mh, 0.0);
+      if ($result !== 0) {
+        return $result;
+      }
+      await \HH\Asio\later();
+    } while (microtime(true) < $finish_by);
+    return 0;
+  }
+
+  /**
    * Execute the curl request based on the respectiv settings.
    *
    * @return int Returns the error code for the current curl request
@@ -95,24 +118,19 @@ class Curl {
     $mh = curl_multi_init();
     curl_multi_add_handle($mh, $this->curl);
     $sleep_ms = 10;
-    $try_count = 0;
     do {
       $active = 1;
       do {
         $status = curl_multi_exec($mh, $active);
       } while ($status == CURLM_CALL_MULTI_PERFORM);
       if (!$active) break;
-      $select = await curl_multi_await($mh, (float) $this->timeout);
+      /* Original implementation of curl_multi_await */
+      $select = await $this->hh_curl_multi_await($mh, 1.0);
       /* If cURL is built without ares suppor, DNS queries don't have a socket
       * to wait on, so curl_multi_await() (and curl_select() in PHP5) will return
       * -1, and polling is required.
       */
-      // BUGFIX secret is iterate -1 are Abort HHVM
-      if ($try_count >= $this->retry_count && $select === -1) {
-        throw new TimeOutException("TimeOut Curl: {$this->timeout} sec, [url] {$this->url}");
-      }
       if ($select === -1) {
-        $try_count++;
         await SleepWaitHandle::create($sleep_ms * 1000);
         if ($sleep_ms < 1000) {
           $sleep_ms *= 2;

@@ -44,13 +44,11 @@ class Curl {
 
   public ?string $response = null;
 
-  private int $timeout = 60;
+  private int $timeout = 5; // sec
 
   private string $url = '';
 
   protected bool $response_header_continue = false;
-
-  private int $retry_count = 2;
 
   /**
    * Constructor ensures the available curl extension is loaded.
@@ -81,6 +79,7 @@ class Curl {
     $this->setOpt(CURLOPT_HEADER, false);
     $this->setOpt(CURLOPT_RETURNTRANSFER, true);
     $this->setOpt(CURLOPT_HEADERFUNCTION, [$this, 'addResponseHeaderLine']);
+    $this->setTimeOut();
     return $this;
   }
 
@@ -478,17 +477,6 @@ class Curl {
   }
 
   /**
-   * Set Curl Retry Count
-   *
-   * @param ?int $count
-   * @return self
-   */
-  public function setRetryCount(int $count = 2): this {
-      $this->retry_count = $count;
-      return $this;
-  }
-
-  /**
    * Set contents of HTTP Cookie header.
    *
    * @param string $key   The name of the cookie
@@ -578,7 +566,7 @@ class Curl {
     $this->request_headers = null;
     $this->response_headers = Map {};
     $this->response = null;
-    $this->setTimeOut(60);
+    $this->setTimeOut();
     $this->url = '';
     $this->init();
     return $this;

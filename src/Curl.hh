@@ -115,7 +115,7 @@ class Curl {
     do {
       $active = 1;
       do {
-        $status = curl_multi_exec($mh, $active);
+        $status = curl_multi_exec($mh, &$active);
       } while ($status == CURLM_CALL_MULTI_PERFORM);
       if (!$active) break;
       /* Original implementation of curl_multi_await */

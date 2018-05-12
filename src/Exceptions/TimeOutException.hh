@@ -5,4 +5,4 @@ namespace HHCurl\Exceptions;
 /**
  * class TimeOutException
  */
-class TimeOutException extends \RuntimeException {}
+final class TimeOutException extends \RuntimeException {}

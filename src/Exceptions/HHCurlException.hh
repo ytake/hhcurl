@@ -5,4 +5,4 @@ namespace HHCurl\Exceptions;
 /**
  * class HHCurlException
  */
-class HHCurlException extends \RuntimeException {}
+final class HHCurlException extends \RuntimeException {}

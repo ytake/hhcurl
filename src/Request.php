@@ -40,7 +40,7 @@ class Request {
 
   public async function get(
     string $url,
-    ?UrlQueryParameter $query = null,
+    ?AbstractParameter $query = null,
   ): Awaitable<Response> {
     $this->setUrl($url, $query);
     $this->requestOption->add(Pair{\CURLOPT_HTTPGET, true});

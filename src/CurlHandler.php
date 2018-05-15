@@ -9,7 +9,7 @@ final class CurlHandler {
 
   public function __construct(
     private resource $curl,
-    private Map<mixed, mixed> $responseHeaders
+    private Map<string, mixed> $responseHeaders
   ) {}
   
   /** 

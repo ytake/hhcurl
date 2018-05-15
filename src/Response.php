@@ -17,7 +17,7 @@ class Response {
     protected int $httpStatusCode = 0,
     protected ?string $httpErrorMessage = null,
     protected ImmVector<string> $requestHeader = ImmVector{},
-    protected ImmMap<mixed, mixed> $responseHeaders = ImmMap{}
+    protected ImmMap<string, mixed> $responseHeaders = ImmMap{}
   ) {}
 
   public function effectiveUrl(): string {
@@ -68,7 +68,7 @@ class Response {
     return $this->requestHeader;
   }
 
-  public function getResponseHeader(): ImmMap<mixed, mixed> {
+  public function getResponseHeader(): ImmMap<string, mixed> {
     return $this->responseHeaders;
   } 
 }

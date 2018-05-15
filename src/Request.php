@@ -8,7 +8,8 @@ namespace HHCurl;
 class Request {
   
   protected Map<int, mixed> $requestOption = Map{};
-  private Map<mixed, mixed> $responseHeaders = Map{};
+  private Map<string, mixed> $responseHeaders = Map{};
+  protected array<string, array<mixed>> $responseHeaderArray = [];
   protected ?resource $curl;
 
   public function __construct(
@@ -112,6 +113,10 @@ class Request {
 
   protected async function exec(): Awaitable<Response> {
     $this->curl = \curl_init();
+
+    if(!$this->option->getOption()->get(\CURLOPT_HEADERFUNCTION)) {
+      $this->setHeaderFunction($this->defaultHeaderFunction());
+    }
     foreach($this->option->getOption()->toArray() as $option => $value) {
       \curl_setopt($this->curl, $option, $value);
     }
@@ -125,9 +130,6 @@ class Request {
         \CURLOPT_COOKIE, 
         \http_build_query($cookie->toArray(), '', '; ')
       );
-    }
-    if(!$this->option->getOption()->get(\CURLOPT_HEADERFUNCTION)) {
-      $this->setHeaderFunction($this->defaultHeaderFunction());
     }
     if(\is_resource($this->curl)) {
       $handler = new CurlHandler($this->curl, $this->responseHeaders);
@@ -143,7 +145,7 @@ class Request {
   public function setHeaderFunction(HeaderFunction $callback): void {
     $this->option->getOption()->add(Pair{\CURLOPT_HEADERFUNCTION, $callback});
   }
-
+  
   protected function defaultHeaderFunction(): HeaderFunction {
     return (resource $curl, string $headerLine) ==> {
       $trimmedHeader = \trim($headerLine, "\r\n");
@@ -152,13 +154,24 @@ class Request {
       } else if (\strtolower($trimmedHeader) === 'http/1.1 100 continue') {
         $this->option->setResponseHeaderContinue(true);
       } else if (!$this->option->getResponseHeaderContinue()) {
-        $this->responseHeaders->add(Pair{$trimmedHeader, $trimmedHeader});
+        $header = \explode(':', $trimmedHeader, 2);
+        if (\count($header) < 3) {
+          if(\count($header) == 2) {
+            $name = \strtolower(\trim($header[0]));
+            if (!\array_key_exists($name, $this->responseHeaderArray)) {
+              $this->responseHeaderArray[$name] = [\trim($header[1])];
+            } else {
+              $this->responseHeaderArray[$name][] = \trim($header[1]);
+            }
+          }
+        }
       }
+      $this->responseHeaders->setAll($this->responseHeaderArray);
       return \strlen($headerLine);
     };
   }
   
-  public function getResponseHeader(): Map<mixed, mixed> {
+  public function getResponseHeader(): Map<string, mixed> {
     return $this->responseHeaders;  
   }
 }

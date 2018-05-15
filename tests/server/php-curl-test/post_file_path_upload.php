@@ -1,4 +1,4 @@
-<?php
+<?hh
 
 $request_method = isset($_SERVER['REQUEST_METHOD']) ?
 						$_SERVER['REQUEST_METHOD'] : '';
